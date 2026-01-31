@@ -89,7 +89,7 @@ static int init_core_dma_engine(const struct device* dev) {
         return code;
       }
       if (!(code = sync_receive_impl(dev, &receive_byte, sizeof(receive_byte), K_MSEC(50)))) {
-        if (recieve_byte == slave_ready_code) {
+        if (receive_byte == slave_ready_code) {
 			    memset(dma_data->smem_data_adr, 0, cfg->smem_size - sizeof(atomic_t));
 			    return 0;
         }
