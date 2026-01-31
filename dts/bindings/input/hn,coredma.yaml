@@ -1,0 +1,20 @@
+description: HN Core DMA shared-memory
+
+compatible: "hn,coredma"
+
+include: base.yaml
+
+properties:
+  mboxes:
+    required: true
+  mbox-names:
+    required: true
+
+  memory-region:
+    type: phandle
+    required: true
+    description: Shared memory region used for lock + payload
+
+  hn,master:
+    type: boolean
+    description: Marks this core as the master for handshake/init

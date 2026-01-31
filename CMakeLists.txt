@@ -1,0 +1,2 @@
+add_subdirectory(driver)
+zephyr_include_directories(driver)

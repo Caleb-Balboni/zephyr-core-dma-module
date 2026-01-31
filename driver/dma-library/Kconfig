@@ -1,0 +1,8 @@
+config HN_COREDMA
+    bool "core to core dma"
+    default n
+    depends on MBOX
+    depends on MEM_ATTR
+    depends on SECOND_CORE_MCUX
+    help
+      Enables the dma driver for core to core communication on the FRDM MCXN 947 Board
