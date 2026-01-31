@@ -170,7 +170,7 @@ static int async_receive_impl(const struct device* dev, void (*callback_func)(vo
 
 static int async_receive_impl_wrapper(const struct device* dev, void (*callback_func)(void*, void*), size_t data_size, void* user_data) {
   struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
-  return async_receive_impl(dev, data, callback_func, data_size, user_data, dma_data->smem_data_adr);
+  return async_receive_impl(dev, callback_func, data_size, user_data, dma_data->smem_data_adr);
 }
 
 // a helper function to sync_receive_impl that notifies it when it has received data
