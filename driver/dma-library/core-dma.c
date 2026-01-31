@@ -229,7 +229,7 @@ static int sync_receive_impl_wrapper(const struct device* dev, void* data, size_
 // @param data - the user data that will be written to the shared memory
 // @param data_size - the size of the data the user is passing (must be under pool size)
 // @return - 0 upon success or a standard zephyr error code
-static int send_impl(const struct device* dev, void* data, size_t data_size, uint8_t write_adr) {
+static int send_impl(const struct device* dev, void* data, size_t data_size, uint8_t* write_adr) {
 	struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
 	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
 	if (data_size > cfg->smem_size - sizeof(atomic_t)) {
