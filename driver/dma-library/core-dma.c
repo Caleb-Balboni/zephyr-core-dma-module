@@ -93,7 +93,7 @@ static int init_core_dma_engine(const struct device* dev) {
 			    memset(dma_data->smem_data_adr, 0, cfg->smem_size - sizeof(atomic_t));
 			    return 0;
         }
-        return -1;
+        return receive_byte;
       }
     }
 	} else {
