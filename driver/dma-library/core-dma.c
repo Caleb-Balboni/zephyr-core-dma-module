@@ -198,7 +198,10 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
   if (code = (mbox_register_callback_dt(&cfg->rx, sync_receive_callback, (void*)&rx_sem))) {
     goto exit_receive;
   }
-  
+  if (code = (mbox_set_enabled_dt(&cfg->rx, true))) {
+    goto exit_receive;
+  }
+
   if (code = (k_sem_take(&rx_sem, timeout))) {
     goto exit_receive;
   }
