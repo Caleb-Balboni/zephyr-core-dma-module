@@ -85,7 +85,7 @@ static int init_core_dma_engine(const struct device* dev) {
 
 		uint8_t receive_byte;
     for (;;) {
-      if ((code = send_impl(dev, &master_ready_code, sizeof(master_ready_code))) {
+      if ((code = send_impl(dev, &master_ready_code, sizeof(master_ready_code)))) {
         return code;
       }
       if (!(code = sync_receive_impl(dev, &recieve_byte, sizeof(receive_byte), K_MSEC(50)))) {
