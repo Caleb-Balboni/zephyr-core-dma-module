@@ -249,13 +249,13 @@ static int send_impl(const struct device* dev, void* data, size_t data_size, uin
 
 static int send_impl_wrapper(const struct device* dev, void* data, size_t data_size) {
   struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
-  return send_impl(dev, data, size_t data_size, dma_data->smem_data_adr);
+  return send_impl(dev, data, data_size, dma_data->smem_data_adr);
 }
 
 static const struct dma_engine dma_engine_api = {
-	.sync_receive = sync_receive_impl,
-	.async_receive = async_receive_impl,
-	.send = send_impl,
+	.sync_receive = sync_receive_impl_wrapper,
+	.async_receive = async_receive_impl_wrapper,
+	.send = send_impl_wrapper,
 	.init = init_core_dma_engine
 };
 
