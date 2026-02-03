@@ -122,18 +122,23 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
   return 0;
 }
 
-void async_receive_thread(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
-	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
-  struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
-  struct dma_channel_info* rx = dma_data->rx;
+static void async_receive_thread(void *p1, void *p2, void *p3) {
+  const struct device *dev = (const struct device *)p1;
+  void (*callback_func)(void*, void*, size_t) = (void (*)(void*, void*, size_t))p2;
+  void *user_data = p3;
+  struct dma_engine_data *dma_data = (struct dma_engine_data *)dev->data;
+  const struct dma_engine_cfg *cfg = (const struct dma_engine_cfg *)dev->config;
+  struct dma_channel_info *rx = dma_data->rx;
+
   for (;;) {
     if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
       size_t copy_size = (cfg->chan_size / 2) - offsetof(struct dma_channel_info, data);
-      void* data = (void*)rx->data;
+      void *data = (void *)rx->data;
       atomic_inc(&rx->ack);
       callback_func(data, user_data, copy_size);
       return;
     }
+    k_yield();
   }
 }
 
@@ -143,18 +148,19 @@ void async_receive_thread(const struct device* dev, void (*callback_func)(void*,
 // @param data_size - the amount of data to cpy from shared memory back to the user in bytes
 // @param user_data - the given user data
 // @return - 0 on success an error code on failure (zephyr standard) and those defined above
-static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
-  struct k_thread data_receive_thread;
-  k_thread_stack_t* t_stack = k_thread_stack_alloc(1024, 0);
-  k_thread_create(&data_receive_thread,
-                  t_stack,
-                  1024,
-                  async_receive_thread,
-                  dev,
-                  callback_func,
-                  user_data,
-                  0, 0, K_NO_WAIT);
-  return 0;
+K_THREAD_STACK_DEFINE(async_stack, 1024);
+static struct k_thread async_thread;
+
+static int async_receive_impl(const struct device *dev, void (*callback_func)(void*, void*, size_t), void *user_data) {
+    k_thread_create(&async_thread,
+                    async_stack,
+                    K_THREAD_STACK_SIZEOF(async_stack),
+                    async_receive_thread,
+                    (void *)dev,
+                    (void *)callback_func,
+                    user_data,
+                    0, 0, K_NO_WAIT);
+    return 0;
 }
 
 // recieves data and blocks the current thread until data has been received
