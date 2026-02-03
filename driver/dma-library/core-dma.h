@@ -72,7 +72,7 @@ static inline int dma_core_send(const struct device* dev, void* data, size_t dat
 	return engine_api->send(dev, data, data_size);
 }
 
-static inline int dma_core_init(const struct device* dev) {
+static inline int dma_core_init(const struct device* dev, uint8_t chan_id) {
 	const struct dma_engine* engine_api = (struct dma_engine*)dev->api;
-	return engine_api->init(dev);
+	return engine_api->init(dev, chan_id);
 }
