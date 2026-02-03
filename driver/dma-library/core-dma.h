@@ -2,6 +2,8 @@
 #include <zephyr/sys/clock.h>
 #include <zephyr/device.h>
 
+#define CHAN_AMT 2
+
 struct dma_engine_cfg {
 	uint8_t* smem_base_adr;
   uint8_t chan_amt;

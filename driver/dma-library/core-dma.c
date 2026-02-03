@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <core-dma.h>
 
-#define CHAN_AMT 2
 #define CHAN_TABLE_STATE_UNINIT 0
 #define CHAN_TABLE_STATE_INPROGRESS 1
 #define CHAN_TABLE_STATE_FINISHED 2
