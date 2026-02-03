@@ -130,7 +130,6 @@ void async_receive_thread(const struct device* dev, void (*callback_func)(void*,
     if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
       size_t copy_size = (cfg->chan_size / 2) - offsetof(struct dma_channel_info, data);
       void* data = (void*)rx->data;
-      memcpy(data, rx->data, copy_size);
       atomic_inc(&rx->ack);
       callback_func(data, user_data, copy_size);
       return;
