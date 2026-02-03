@@ -16,7 +16,7 @@
 #define ALIGN_UP(x, y) (((x) + ((y) - 1)) & ~((y) - 1))
 
 static int send_impl(const struct device* dev, void* data, size_t data_size);
-static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*), size_t data_size, void* user_data);
+static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data);
 static int sync_receive_impl(const struct device* dev, void* data, size_t data_size, k_timeout_t timeout);
 
 void get_channel_table(const struct device* dev, struct dma_channel_table** table) {
@@ -146,7 +146,7 @@ void async_receive_thread(const struct device* dev, void (*callback_func)(void*,
 // @return - 0 on success an error code on failure (zephyr standard) and those defined above
 static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
   struct k_thread data_receive_thread;
-  k_thread_stack_t* t_stack = k_thread_stack_alloc(1024);
+  k_thread_stack_t* t_stack = k_thread_stack_alloc(1024, 0);
   k_thread_create(&data_receive_thread,
                   t_stack,
                   1024,
