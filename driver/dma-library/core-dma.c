@@ -25,23 +25,29 @@ void get_channel_table(const struct device* dev, struct dma_channel_table** tabl
   return;
 }
 
-static int dma_core_atomic_lock(volatile atomic_t* lock, k_timeout_t timeout) {
-	if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {
-		return atomic_cas(lock, 0, 1) ? 0 : -EBUSY;
-	}
-	if (K_TIMEOUT_EQ(timeout, K_FOREVER)) {
-		while (!atomic_cas(lock, 0, 1)) { k_yield(); }
-		return 0;
-	}
-	int64_t timeout_ms = k_ticks_to_ms_floor64(timeout.ticks);
-	int64_t deadline = k_uptime_get() + timeout_ms;
-	while (!atomic_cas(lock, 0, 1)) {
-		if (k_uptime_get() > deadline) {
-			return -ETIMEDOUT;
-		}
-		k_yield();
-	}
-	return 0;
+static int dma_core_atomic_lock(volatile atomic_t *lock, k_timeout_t timeout)
+{
+  if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {
+    return atomic_cas(lock, 0, 1) ? 0 : -EBUSY;
+  }
+  if (K_TIMEOUT_EQ(timeout, K_FOREVER)) {
+    while (!atomic_cas(lock, 0, 1)) {
+      k_yield();
+    }
+    return 0;
+  }
+  const int64_t start = k_uptime_ticks();
+  const int64_t limit = timeout.ticks;
+  if (limit <= 0) {
+    return atomic_cas(lock, 0, 1) ? 0 : -EBUSY;
+  }
+  while (!atomic_cas(lock, 0, 1)) {
+    if ((k_uptime_ticks() - start) >= limit) {
+      return -ETIMEDOUT;
+    }
+    k_yield();
+  }
+  return 0;
 }
 
 static int dma_core_atomic_unlock(volatile atomic_t* lock) {
@@ -129,7 +135,40 @@ static int async_receive_impl(const struct device* dev, void (*callback_func)(vo
 // standard zephyr time macros eg: K_FOREVER, K_MINUTES, K_MSEC ...
 // @return - 0 if execution is successfull or a standard zephyr error code upon failure
 static int sync_receive_impl(const struct device* dev, void* data, size_t data_size, k_timeout_t timeout) {
-	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
+  struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
+  struct dma_channel_info* rx = dma_data->rx; 
+  if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {
+    if (rx->seq - 1 == rx->ack) {
+      goto set_and_ret;
+    }
+  }
+  if (K_TIMEOUT_EQ(timeout, K_FOREVER)) {
+    while (!atomic_cas(1) {
+      if (rx->seq - 1 == rx->ack) {
+        goto set_and_ret;
+      }
+    }
+    return 0;
+  }
+  const int64_t start = k_uptime_ticks();
+  const int64_t limit = timeout.ticks;
+  if (limit <= 0) {
+    if (rx->seq - 1 == rx->ack) {
+      goto set_and_ret;
+    }
+  }
+  for (;;) {
+    if (rx->seq - 1 == rx->ack) {
+      goto set_and_ret;
+    }
+    if ((k_uptime_ticks() - start) >= limit) {
+      return -ETIMEDOUT;
+    }
+    k_yield();
+  }
+  set_and_ret:
+  memcpy(data, rx->data, data_size); 
+  atomic_inc(&rx->ack);
 	return 0;
 }
 
@@ -140,7 +179,12 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
 // @return - 0 upon success or a standard zephyr error code
 static int send_impl(const struct device* dev, void* data, size_t data_size) {
 	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
-  struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
+  struct dma_channel_info* tx = dma_data->tx;
+  if (atomic_get(&tx->seq) != atomic_get(&tx->ack)) {
+    return -1;
+  }
+  memcpy(tx->data, data, data_size);
+  atomic_inc(&tx->seq);
 	return 0;
 }
 
