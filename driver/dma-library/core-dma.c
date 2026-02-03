@@ -122,7 +122,7 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
   return 0;
 }
 
-void async_receive_thread(const struct device* dev, (*callback_func)(void*, void*, size_t), void* user_data) {
+void async_receive_thread(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
 	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
   struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
   struct dma_channel_info* rx = dma_data->rx;
