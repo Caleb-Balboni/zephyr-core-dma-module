@@ -143,7 +143,7 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
     }
   }
   if (K_TIMEOUT_EQ(timeout, K_FOREVER)) {
-    while (!atomic_cas(1) {
+    for (;;) {
       if (rx->seq - 1 == rx->ack) {
         goto set_and_ret;
       }
