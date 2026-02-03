@@ -22,6 +22,8 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
 
 struct dma_engine_cfg {
 	uint8_t* smem_base_adr;
+  uint8_t chan_amt;
+  uint8_t is_master;
   size_t chan_size; 
   size_t smem_total_size;
 };
@@ -35,7 +37,8 @@ struct dma_channel_info { // shared memory struct on 4 byte alignment
 struct dma_channel_table_entry {
   uint16_t available;
   int16_t chan_id;
-  uint8_t* chan_base_adr; 
+  uint8_t* chan_rx_adr; 
+  uint8_t* chan_tx_adr;
 };
 
 struct dma_channel_table {
@@ -73,24 +76,27 @@ static int dma_core_atomic_unlock(volatile atomic_t* lock) {
 }
 
 static void init_channel_table(struct dma_channel_table* c_table) {
-  int table_state = atomic_get(&c_table.init_state);
+  int table_state = atomic_get(&c_table->init_state);
   if (table_state == CHAN_TABLE_STATE_FINISHED) { return; }
 
   if (table_state != CHAN_TABLE_STATE_UNINIT && 
       table_state != CHAN_TABLE_STATE_INPROGRESS && 
       table_state != CHAN_TABLE_STATE_FINISHED) {
-    atomic_set(&c_table.init_state, CHAN_TABLE_STATE_UNINIT);
+    atomic_set(&c_table->init_state, CHAN_TABLE_STATE_UNINIT);
   }
-  if (atomic_cas(&c_table.init_state, CHAN_TABLE_STATE_UNINIT, CHAN_TABLE_STATE_INPROGRESS)) {
+  if (atomic_cas(&c_table->init_state, CHAN_TABLE_STATE_UNINIT, CHAN_TABLE_STATE_INPROGRESS)) {
+    atomic_set(&c_table->chan_lock, 0);
     for (uint8_t i = 0; i < CHAN_AMT; i++) {
       struct dma_channel_table_entry* entry = &c_table->channels[i];
       entry->available = 1;
       entry->chan_id = -1;
-      entry->size = 0;
-      entry->chan_base_adr = NULL;
+      entry->chan_tx_adr = NULL;
+      entry->chan_rx_adr = NULL;
     }
+    atomic_set(&c_table->init_state, CHAN_TABLE_STATE_FINISHED);
+    return;
   }
-  while (atomic_get(&c_table.init_state) == CHAN_TABLE_STATE_INPROGRESS) {
+  while (atomic_get(&c_table->init_state) != CHAN_TABLE_STATE_FINISHED) {
     k_yield();
   }
   return;
@@ -100,27 +106,35 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
   const struct dma_engine_cfg* cfg = (const struct dma_engine_cfg*)dev->config;
   struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
 
-  if (chan_id >= (cfg->smem_total_size / cfg->chan_size)) {
+  if (chan_id >= (cfg->chan_amt)) {
     return -1;
   }
   struct dma_channel_table* c_table = (struct dma_channel_table*)cfg->smem_base_adr;
-  dma_core_atomic_lock(&c_table->lock, K_FOREVER);
   init_channel_table(c_table);
+  dma_core_atomic_lock(&c_table->chan_lock, K_FOREVER);
+
   struct dma_channel_table_entry* chan_info = &c_table->channels[chan_id];
   if (chan_info->available) {
-    cfg->chan_size = ALIGN_UP(smem_total_size, 8); // no matter the size the users entered round for 4 byte align
-    uint16_t* chan_adr = cfg->smem_base_adr + sizeof(struct dma_channel_table) + (cfg->chan_size * chan_id);
-    if ((cfg->smem_base_adr + cfg->smem_total_size) < chan_adr) {
-      dma_core_atomic_unlock(&c_table->lock);
+    uintptr_t chan_rx_adr = ALIGN_UP((uintptr_t)(cfg->smem_base_adr + sizeof(struct dma_channel_table) + (cfg->chan_size * chan_id)), 8);
+    uintptr_t chan_tx_adr = ALIGN_UP((uintptr_t)(chan_rx_adr + (cfg->chan_size / 2)), 8);
+    if ((cfg->smem_base_adr + cfg->smem_total_size) < (uint8_t*)chan_rx_adr + cfg->chan_size) {
+      dma_core_atomic_unlock(&c_table->chan_lock);
       return -1;
     }
+    chan_info->chan_rx_adr = (uint8_t*)chan_rx_adr; 
+    chan_info->chan_tx_adr = (uint8_t*)chan_tx_adr;
     chan_info->chan_id = chan_id; 
     chan_info->available = 0;
   }
-  dma_data->rx = (struct dma_channel_info*)chan_info->chan_base_adr;
-  dma_data->tx = (struct dma_channel_info*)(chan_info->chan_base_adr + (chan_offset / 2));
-  dma_core_atomic_unlock(&c_table->lock);
-
+  if (cfg->is_master) {
+    dma_data->rx = (struct dma_channel_info*)chan_info->chan_rx_adr;
+    dma_data->tx = (struct dma_channel_info*)chan_info->chan_tx_adr;
+  } else {
+    dma_data->rx = (struct dma_channel_info*)chan_info->chan_tx_adr;
+    dma_data->tx = (struct dma_channel_info*)chan_info->chan_rx_adr;
+  }
+  dma_core_atomic_unlock(&c_table->chan_lock);
+  return 0;
 }
 
 // recieves data from the other core and calls a user defined function containing the received data
@@ -176,12 +190,11 @@ static const struct dma_engine dma_engine_api = {
 #define COREDMA_DEFINE(inst)									                                                                \
 	static struct dma_engine_data dma_engine_data_##inst;                                                       \
 	static const struct dma_engine_cfg dma_engine_cfg_##inst = {				                                        \
-		.tx = MBOX_DT_SPEC_INST_GET(inst, tx),						                                                        \
-		.rx = MBOX_DT_SPEC_INST_GET(inst, rx),						                                                        \
-		.m_core = DT_INST_PROP_OR(inst, hn_master, 0),					                                                  \
+		.is_master = DT_INST_PROP_OR(inst, is_master, 0),					                                                \
 		.smem_base_adr = (uint8_t *)DT_REG_ADDR(DT_INST_PHANDLE(inst, memory_region)),	                          \
-		.smem_size = (size_t)DT_REG_SIZE(DT_INST_PHANDLE(inst, memory_region)),		                                \
-    .ctrl = NULL,                                                                                             \
+		.smem_total_size = (size_t)DT_REG_SIZE(DT_INST_PHANDLE(inst, memory_region)),		                          \
+    .chan_size = (size_t)DT_INST_PROP(inst, chan_size),                                                       \
+    .chan_amt = (uint8_t)DT_INST_PROP(inst, chan_amt),                                                        \
 	};											                                                                                    \
 	DEVICE_DT_INST_DEFINE(inst,								                                                                  \
 			      NULL, NULL,							                                                                          \
