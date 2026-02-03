@@ -25,7 +25,7 @@ void get_channel_table(const struct device* dev, struct dma_channel_table** tabl
   return;
 }
 
-static int dma_core_atomic_lock(volatile atomic_t *lock, k_timeout_t timeout)
+static int dma_core_atomic_lock(atomic_t *lock, k_timeout_t timeout)
 {
   if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {
     return atomic_cas(lock, 0, 1) ? 0 : -EBUSY;
@@ -50,7 +50,7 @@ static int dma_core_atomic_lock(volatile atomic_t *lock, k_timeout_t timeout)
   return 0;
 }
 
-static int dma_core_atomic_unlock(volatile atomic_t* lock) {
+static int dma_core_atomic_unlock(atomic_t* lock) {
 	return atomic_set(lock, 0);
 }
 
