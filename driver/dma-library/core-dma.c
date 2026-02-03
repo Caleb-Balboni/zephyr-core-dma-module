@@ -147,7 +147,7 @@ void async_receive_thread(const struct device* dev, (*callback_func)(void*, void
 static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
   struct k_thread data_receive_thread;
   k_thread_stack_t* t_stack = k_thread_stack_alloc(1024);
-  k_thread_create(&data_recieve_thread,
+  k_thread_create(&data_receive_thread,
                   t_stack,
                   1024,
                   async_receive_thread,
