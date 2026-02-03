@@ -46,7 +46,7 @@ typedef int (*async_receive_t)(const struct device* dev, void (*callback_func)(v
 // send data
 typedef int (*send_t)(const struct device* dev, void* data, size_t data_size);
 
-typedef int (*init_t)(const struct device* dev);
+typedef int (*init_t)(const struct device* dev, uint8_t chan_id);
 
 struct dma_engine {
 	sync_receive_t sync_receive;
