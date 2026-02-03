@@ -64,7 +64,7 @@ static inline int dma_core_sync_receive(const struct device* dev, void* data, si
 
 static inline int dma_core_async_receive(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
 	const struct dma_engine* engine_api = (struct dma_engine*)dev->api;
-	return engine_api->async_receive(dev, callback_func, data_size, user_data);
+	return engine_api->async_receive(dev, callback_func, user_data);
 }
 
 static inline int dma_core_send(const struct device* dev, void* data, size_t data_size) {

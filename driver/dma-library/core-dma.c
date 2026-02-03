@@ -144,7 +144,7 @@ void async_receive_thread(const struct device* dev, (*callback_func)(void*, void
 // @param data_size - the amount of data to cpy from shared memory back to the user in bytes
 // @param user_data - the given user data
 // @return - 0 on success an error code on failure (zephyr standard) and those defined above
-static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), size_t data_size, void* user_data) {
+static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), void* user_data) {
   struct k_thread data_receive_thread;
   k_thread_stack_t* t_stack = k_thread_stack_alloc(1024);
   k_thread_create(&data_recieve_thread,
