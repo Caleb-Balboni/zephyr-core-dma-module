@@ -122,14 +122,39 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
   return 0;
 }
 
+void async_receive_thread(const struct device* dev, (*callback_func)(void*, void*, size_t), void* user_data) {
+	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
+  struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
+  struct dma_channel_info* rx = dma_data->rx;
+  for (;;) {
+    if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
+      size_t copy_size = (cfg->chan_size / 2) - offsetof(struct dma_channel_info, data);
+      void* data = k_malloc(copy_size);
+      memcpy(data, rx->data, copy_size);
+      atomic_inc(&rx->ack);
+      callback_func(data, user_data, copy_size);
+      return;
+    }
+  }
+}
+
 // recieves data from the other core and calls a user defined function containing the received data
 // @param dev - the device aka the mbox and shared data region
 // @param callback_func - the callback function passed by the user @arg1 - received data @arg2 - user data
 // @param data_size - the amount of data to cpy from shared memory back to the user in bytes
 // @param user_data - the given user data
 // @return - 0 on success an error code on failure (zephyr standard) and those defined above
-static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*), size_t data_size, void* user_data) {
-	struct dma_engine_data* dma_data = dev->data;
+static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*, size_t), size_t data_size, void* user_data) {
+  struct k_thread data_receive_thread;
+  k_thread_stack_t* t_stack = k_thread_stack_alloc(1024);
+  k_thread_create(&data_recieve_thread,
+                  t_stack,
+                  1024,
+                  async_receive_thread,
+                  dev,
+                  callback_func,
+                  user_data,
+                  0, 0, K_NO_WAIT);
   return 0;
 }
 
