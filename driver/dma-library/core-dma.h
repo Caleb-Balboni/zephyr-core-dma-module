@@ -13,8 +13,8 @@ struct dma_engine_cfg {
 };
 
 struct dma_channel_info { // shared memory struct on 4 byte alignment
-  volatile atomic_t seq;
-  volatile atomic_t ack;
+  atomic_t seq;
+  atomic_t ack;
   uint8_t data[];
 };
 
@@ -26,8 +26,8 @@ struct dma_channel_table_entry {
 };
 
 struct dma_channel_table {
-  volatile atomic_t init_state;
-  volatile atomic_t chan_lock;
+  atomic_t init_state;
+  atomic_t chan_lock;
   struct dma_channel_table_entry channels[CHAN_AMT];
 };
 
