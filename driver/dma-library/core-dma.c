@@ -144,7 +144,7 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
   }
   if (K_TIMEOUT_EQ(timeout, K_FOREVER)) {
     for (;;) {
-      if (rx->seq - 1 == rx->ack) {
+      if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
         goto set_and_ret;
       }
     }
@@ -153,12 +153,12 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
   const int64_t start = k_uptime_ticks();
   const int64_t limit = timeout.ticks;
   if (limit <= 0) {
-    if (rx->seq - 1 == rx->ack) {
+    if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
       goto set_and_ret;
     }
   }
   for (;;) {
-    if (rx->seq - 1 == rx->ack) {
+    if (atomic_get(&rx->seq) - 1 == atomic_get(&rx->ack)) {
       goto set_and_ret;
     }
     if ((k_uptime_ticks() - start) >= limit) {
