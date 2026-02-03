@@ -20,37 +20,11 @@ static int send_impl(const struct device* dev, void* data, size_t data_size);
 static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*), size_t data_size, void* user_data);
 static int sync_receive_impl(const struct device* dev, void* data, size_t data_size, k_timeout_t timeout);
 
-struct dma_engine_cfg {
-	uint8_t* smem_base_adr;
-  uint8_t chan_amt;
-  uint8_t is_master;
-  size_t chan_size; 
-  size_t smem_total_size;
-};
-
-struct dma_channel_info { // shared memory struct on 4 byte alignment
-  volatile atomic_t seq;
-  volatile atomic_t ack;
-  uint8_t data[];
-};
-
-struct dma_channel_table_entry {
-  uint16_t available;
-  int16_t chan_id;
-  uint8_t* chan_rx_adr; 
-  uint8_t* chan_tx_adr;
-};
-
-struct dma_channel_table {
-  volatile atomic_t init_state;
-  volatile atomic_t chan_lock;
-  struct dma_channel_table_entry channels[CHAN_AMT];
-};
-
-struct dma_engine_data {
-  struct dma_channel_info* rx;
-  struct dma_channel_info* tx;
-};
+void get_channel_table(const struct device* dev, struct dma_channel_table** table) {
+  const struct dma_engine_cfg* cfg = (const struct dma_engine_cfg*)dev->config;
+  *table = (struct dma_channel_table*)cfg->smem_base_adr;
+  return;
+}
 
 static int dma_core_atomic_lock(volatile atomic_t* lock, k_timeout_t timeout) {
 	if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {

@@ -2,6 +2,38 @@
 #include <zephyr/sys/clock.h>
 #include <zephyr/device.h>
 
+struct dma_engine_cfg {
+	uint8_t* smem_base_adr;
+  uint8_t chan_amt;
+  uint8_t is_master;
+  size_t chan_size; 
+  size_t smem_total_size;
+};
+
+struct dma_channel_info { // shared memory struct on 4 byte alignment
+  volatile atomic_t seq;
+  volatile atomic_t ack;
+  uint8_t data[];
+};
+
+struct dma_channel_table_entry {
+  uint16_t available;
+  int16_t chan_id;
+  uint8_t* chan_rx_adr; 
+  uint8_t* chan_tx_adr;
+};
+
+struct dma_channel_table {
+  volatile atomic_t init_state;
+  volatile atomic_t chan_lock;
+  struct dma_channel_table_entry channels[CHAN_AMT];
+};
+
+struct dma_engine_data {
+  struct dma_channel_info* rx;
+  struct dma_channel_info* tx;
+};
+
 // wait for data to be recieved for a specified period of time, data passed in as a buffer
 typedef int (*sync_receive_t)(const struct device* dev, void* data, size_t data_size, k_timeout_t wait_time);
 
@@ -20,6 +52,8 @@ struct dma_engine {
 	send_t send;
 	init_t init;
 };
+
+void get_channel_table(const struct device* dev, struct dma_channel_table** table);
 
 static inline int dma_core_sync_receive(const struct device* dev, void* data, size_t data_size, k_timeout_t wait_time) {
 	const struct dma_engine* engine_api = (struct dma_engine*)dev->api;
