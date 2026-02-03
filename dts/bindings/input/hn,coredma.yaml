@@ -4,7 +4,12 @@ compatible: "hn,coredma"
 
 include: base.yaml
 
-properties:
+properties:  
+  memory-region:
+    type: phandle
+    required: true
+    description: Phandle to a reserved-memory node used as the shared memory region.
+
   chan-size:
     type: int
     required: true
@@ -14,11 +19,6 @@ properties:
     type: int
     required: true
     description: Number of channels
-
-  smem-total-size:
-    type: int
-    required: true
-    description: Total shared memory size in bytes
 
   is-master:
     type: boolean
