@@ -145,9 +145,7 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
 // @return - 0 on success an error code on failure (zephyr standard) and those defined above
 static int async_receive_impl(const struct device* dev, void (*callback_func)(void*, void*), size_t data_size, void* user_data) {
 	struct dma_engine_data* dma_data = dev->data;
-	if (data_size > dma_data->smem_size - sizeof(atomic_t)) {
-		return -EDOM;
-	}
+  return 0;
 }
 
 // recieves data and blocks the current thread until data has been received
@@ -158,12 +156,8 @@ static int async_receive_impl(const struct device* dev, void (*callback_func)(vo
 // standard zephyr time macros eg: K_FOREVER, K_MINUTES, K_MSEC ...
 // @return - 0 if execution is successfull or a standard zephyr error code upon failure
 static int sync_receive_impl(const struct device* dev, void* data, size_t data_size, k_timeout_t timeout) {
-  int code = 0;
 	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
-	if (data_size > dma_data->smem_size - sizeof(atomic_t)) {
-		return -EDOM;
-	}
-	return code;
+	return 0;
 }
 
 // sends data by notifying the other core and writing data to the shared memory pool
@@ -174,9 +168,6 @@ static int sync_receive_impl(const struct device* dev, void* data, size_t data_s
 static int send_impl(const struct device* dev, void* data, size_t data_size) {
 	struct dma_engine_data* dma_data = (struct dma_engine_data*)dev->data;
   struct dma_engine_cfg* cfg = (struct dma_engine_cfg*)dev->config;
-	if (data_size > dma_data->smem_size - sizeof(atomic_t)) {
-		return -EDOM;
-	}
 	return 0;
 }
 
