@@ -34,7 +34,7 @@ static int dma_core_atomic_lock(volatile atomic_t *lock, k_timeout_t timeout)
     while (!atomic_cas(lock, 0, 1)) {
       k_yield();
     }
-    return 0;
+ return 0;
   }
   const int64_t start = k_uptime_ticks();
   const int64_t limit = timeout.ticks;
@@ -104,6 +104,12 @@ static int init_core_dma_engine(const struct device* dev, uint8_t chan_id) {
     chan_info->chan_tx_adr = (uint8_t*)chan_tx_adr;
     chan_info->chan_id = chan_id; 
     chan_info->available = 0;
+    struct dma_channel_info* tx = (struct dma_channel_info*)chan_info->chan_tx_adr;
+    struct dma_channel_info* rx = (struct dma_channel_info*)chan_info->chan_rx_adr;
+    atomic_set(&tx->seq, 0);
+    atomic_set(&tx->ack, 0);
+    atomic_set(&rx->seq, 0);
+    atomic_set(&rx->ack, 0);
   }
   if (cfg->is_master) {
     dma_data->rx = (struct dma_channel_info*)chan_info->chan_rx_adr;
